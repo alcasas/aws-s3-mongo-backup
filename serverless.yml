@@ -1,0 +1,49 @@
+service:
+  name: mongo-backup-${opt:service-name,'default'}
+
+plugins:
+  - serverless-webpack
+
+custom:
+  region: ${opt:region, 'us-west-2'}
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  region: ${self:custom.region}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+      Resource:
+        - "arn:aws:s3:::${opt:bucket}/*"
+  profile: ${opt:profile}
+  environment:
+    SERVICE_NAME: ${self:service.name}
+    MONGO_URI: ${opt:mongo-uri}
+    AWS_S3_DUMP_BUCKET: ${opt:bucket}
+    REGION: ${self:custom.region}
+
+functions:
+  backup:
+    handler: src/mongo.backup
+    events:
+      - schedule: 
+        name: ${self:service.name} - Scheduler
+        rate: ${opt:schedule, 'cron(0 12 * * ? *)'}
+
+resources:
+  Resources:
+    DumpBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${opt:bucket}
+        LifecycleConfiguration:
+          Rules:
+          - Id: GlacierRule
+            Prefix: glacier
+            Status: Enabled
+            ExpirationInDays: ${opt:expiration, '180'}
+            Transitions:
+              - TransitionInDays: ${opt:transition, '7'}
+                StorageClass: Glacier

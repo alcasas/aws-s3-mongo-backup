@@ -1,0 +1,22 @@
+{
+  "name": "mongo-backup-scheduler",
+  "version": "1.0.0",
+  "description": "Serverless webpack: mongodb 4x beckup scheduler",
+  "scripts": {},
+  "dependencies": {
+    "aws-sdk": "^2.488.0",
+    "mongodb-backup-4x": "^3.2.0",
+    "s3-upload-stream": "^1.0.7",
+    "source-map-support": "^0.5.10"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.17",
+    "@types/node": "^10.12.18",
+    "serverless-webpack": "^5.2.0",
+    "ts-loader": "^5.3.3",
+    "typescript": "^3.2.4",
+    "webpack": "^4.29.0"
+  },
+  "author": "Alberto Casas",
+  "license": "MIT"
+}
