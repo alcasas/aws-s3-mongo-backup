@@ -1,5 +1,5 @@
 service:
-  name: mongo-backup-${opt:service-name,'default'}
+  name: mongo-backup-scheduler
 
 plugins:
   - serverless-webpack
