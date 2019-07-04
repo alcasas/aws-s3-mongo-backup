@@ -5,6 +5,7 @@ plugins:
   - serverless-webpack
 
 custom:
+  #region can be sent as CLI param
   region: ${opt:region, 'us-west-2'}
 
 provider:
@@ -17,7 +18,8 @@ provider:
         - "s3:PutObject"
       Resource:
         - "arn:aws:s3:::${opt:bucket}/*"
-  profile: ${opt:profile}
+  #aws local profile can be sent as CLI param
+  profile: ${opt:profile, 'default'}
   environment:
     SERVICE_NAME: ${self:service.name}
     MONGO_URI: ${opt:mongo-uri}
@@ -29,8 +31,9 @@ functions:
     handler: src/mongo.backup
     events:
       - schedule: 
-        name: ${self:service.name} - Scheduler
-        rate: ${opt:schedule, 'cron(0 12 * * ? *)'}
+          name: ${self:service.name}-Scheduler
+          # you can change the rate here
+          rate: cron(0 12 * * ? *)
 
 resources:
   Resources:
@@ -41,9 +44,10 @@ resources:
         LifecycleConfiguration:
           Rules:
           - Id: GlacierRule
-            Prefix: glacier
             Status: Enabled
-            ExpirationInDays: ${opt:expiration, '180'}
+            # you can change expiration days here
+            ExpirationInDays: '180'
             Transitions:
-              - TransitionInDays: ${opt:transition, '7'}
+              # transition to glacier can be changed here
+              - TransitionInDays: '7'
                 StorageClass: Glacier
