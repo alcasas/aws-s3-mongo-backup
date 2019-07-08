@@ -6,29 +6,40 @@ plugins:
 
 custom:
   #region can be sent as CLI param
-  region: ${opt:region, 'us-west-2'}
+  region: ${opt:region, "us-west-2"}
+  snsTopicName: ${self:service.name}-error
+  subscriptionEmail: ${opt:email, "none"}
 
 provider:
   name: aws
   runtime: nodejs10.x
   region: ${self:custom.region}
   iamRoleStatements:
-    - Effect: "Allow"
+    - Effect: Allow
       Action:
         - "s3:PutObject"
       Resource:
         - "arn:aws:s3:::${opt:bucket}/*"
+    - Effect: Allow
+      Action:
+        - "sns:Publish"
+      Resource: !Ref SNSErrorTopic
   #aws local profile can be sent as CLI param
-  profile: ${opt:profile, 'default'}
+  profile: ${opt:profile, "default"}
   environment:
     SERVICE_NAME: ${self:service.name}
     MONGO_URI: ${opt:mongo-uri}
     AWS_S3_DUMP_BUCKET: ${opt:bucket}
     REGION: ${self:custom.region}
+    SNS_ERROR_ARN: !Ref SNSErrorTopic
+    SUBSCRIPTION_EMAIL: ${self:custom.subscriptionEmail}
 
 functions:
   backup:
     handler: src/mongo.backup
+    timeout: 30
+    memorySize: 512
+    onError: !Ref SNSErrorTopic
     events:
       - schedule: 
           name: ${self:service.name}-Scheduler
@@ -36,6 +47,8 @@ functions:
           rate: cron(0 12 * * ? *)
 
 resources:
+  Conditions:
+    Subscribe: !Not [!Equals ["${self:custom.subscriptionEmail}", "none"]]
   Resources:
     DumpBucket:
       Type: AWS::S3::Bucket
@@ -51,3 +64,15 @@ resources:
               # transition to glacier can be changed here
               - TransitionInDays: '7'
                 StorageClass: Glacier
+    SNSErrorTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: ${self:custom.snsTopicName}
+        TopicName: ${self:custom.snsTopicName}
+    ErrorSubscription:
+      Condition: Subscribe
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: ${self:custom.subscriptionEmail}
+        Protocol: email
+        TopicArn: !Ref SNSErrorTopic

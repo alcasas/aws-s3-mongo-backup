@@ -1,18 +1,35 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
-import { S3 } from 'aws-sdk';
+import { S3, SNS } from 'aws-sdk';
 import mongoDump from 'mongodb-backup-4x';
 import s3UploadStream from 's3-upload-stream';
 import 'source-map-support/register';
 
 export const backup: APIGatewayProxyHandler = (_event, _context, callback) => {
-  
-  // connect s3 with s3Stream
-  const s3Stream = s3UploadStream(new S3({
+
+  const publishSNS = (error:Error)=>{
+    if(error){
+      if(process.env.SUBSCRIPTION_EMAIL !== 'none'){
+        const sns = new SNS(aswConf);
+        sns.publish({
+          TopicArn: process.env.SNS_ERROR_ARN,
+          Message: `${error.name}: ${error.message}`,
+          Subject: `Error in service ${process.env.SERVICE_NAME}. Mongo Error`,
+        }, ()=> callback(error) );
+      } else {
+        callback(error);
+      }
+    }
+  };
+
+  const aswConf = {
     accessKeyId     : process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey : process.env.AWS_SECRET_ACCESS_KEY,
     sessionToken    : process.env.AWS_SESSION_TOKEN,
     region          : process.env.REGION
-  }));
+  };
+  
+  // connect s3 with s3Stream
+  const s3Stream = s3UploadStream(new S3(aswConf));
 
   // setup s3Stream
   const uploadToS3 = s3Stream.upload({
@@ -21,7 +38,7 @@ export const backup: APIGatewayProxyHandler = (_event, _context, callback) => {
   });
 
   //stream events
-  uploadToS3.on('error', callback);
+  uploadToS3.on('error', publishSNS);
   uploadToS3.on('uploaded', (body: Object)=>{
     callback(null, {
       statusCode: 200,
@@ -37,7 +54,8 @@ export const backup: APIGatewayProxyHandler = (_event, _context, callback) => {
     stream  : uploadToS3,
     options : {
       useNewUrlParser: true
-    }
+    },
+    callback: publishSNS
   });
 
 }
