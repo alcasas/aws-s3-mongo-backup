@@ -7,13 +7,15 @@ import 'source-map-support/register';
 export const backup: APIGatewayProxyHandler = (_event, _context, callback) => {
 
   const publishSNS = (error:Error)=>{
+    const errorDisplay = error.name ? error.name : 'Error';
+    const errorMsgDisplay = error.message ? error.message : 'Unexpected error.';
     if(error){
       if(process.env.SUBSCRIPTION_EMAIL !== 'none'){
         const sns = new SNS(aswConf);
         sns.publish({
           TopicArn: process.env.SNS_ERROR_ARN,
-          Message: `${error.name}: ${error.message}`,
-          Subject: `Error in service ${process.env.SERVICE_NAME}. Mongo Error`,
+          Message: `${errorDisplay}: ${errorMsgDisplay}. Please go to you AWS account and look for lambda logs or contact your administrator.`,
+          Subject: `Error in service ${process.env.SERVICE_NAME}.`,
         }, ()=> callback(error) );
       } else {
         callback(error);
